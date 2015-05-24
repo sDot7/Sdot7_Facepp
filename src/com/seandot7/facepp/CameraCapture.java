@@ -10,6 +10,7 @@ import static org.bytedeco.javacpp.opencv_core.cvReleaseImage;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Timer;
@@ -82,6 +83,20 @@ public class CameraCapture {
 		return this.bufferedImage;
 	}
 	
+	public byte[] getBytesImageOfFrame() {
+		if (bufferedImage != null) {
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+			try {
+				ImageIO.write(bufferedImage, "jpg", outputStream);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			byte[] imageBytes = outputStream.toByteArray();
+			return imageBytes;
+		} else
+			return null;
+	}
+	
 	public Image getScaledImageOfFrame() {
 		if (this.bufferedImage != null) {
 			ImageIcon icon = new ImageIcon(this.bufferedImage);
@@ -131,8 +146,9 @@ public class CameraCapture {
 	public void off() {
 		//release resources
 		try {
-			cvReleaseImage(image);	 
+			timer.cancel();
 			grabber.stop();
+			cvReleaseImage(image);	 
 		} catch(Exception e) {
 			e.printStackTrace();
 		}

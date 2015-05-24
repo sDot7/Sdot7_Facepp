@@ -1,6 +1,9 @@
 package com.seandot7.facepp;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -23,43 +26,53 @@ public class FaceppUtils {
 	static final String IMAGE_FILE = "/Users/sean_7/projects/FacePlusPlus/pics/messi_01.jpg";
 	static final double RECOGNITION_THRESHOLD = 10.0;
 	
+	public static boolean debug = true;
 	
+	public static void println(Object param) {
+		if (debug)
+			System.out.println(param);
+	}
 	public static JSONObject createPerson(String personName) {
-		System.out.println("\nperson/create: " + personName);
+		println("\nperson/create: " + personName);
 		JSONObject result = null;
 		try {
 			result = httpRequests.personCreate(new PostParameters().setPersonName(personName));
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;
 	}
 	
 	public static JSONObject getPersonInfo(String personName) {
-		System.out.println("\nperson/get_info: " + personName);
+		println("\nperson/get_info: " + personName);
 		JSONObject result = null;
 		try {
 			result = httpRequests.personGetInfo(new PostParameters().setPersonName(personName));
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;	
 	}
 	
 	public static JSONObject deletePerson(String personName) {
-		System.out.println("\nperson/delete: " + personName);
+		println("\nperson/delete: " + personName);
 		JSONObject result = null;
 		try {
 			result = httpRequests.personDelete(new PostParameters().setPersonName(personName));
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;	
 	}
 	
+	/**
+	 * 
+	 * @param personName
+	 * @return true if success
+	 */
 	public static boolean deletePerson2(String personName) {
 		JSONObject result = deletePerson(personName);
 		try {
@@ -73,7 +86,7 @@ public class FaceppUtils {
 	
 	public static JSONObject detectFace(String imageFilePath) {
 		// detection/detect
-		System.out.println("\ndetection/detect: " + imageFilePath);
+		println("\ndetection/detect: " + imageFilePath);
 		JSONObject result = null;
 		File imageFile = new File(imageFilePath);
 		if (!imageFile.isFile())
@@ -86,9 +99,25 @@ public class FaceppUtils {
 		return result;
 	}
 	
+	public static JSONObject detectFace(byte[] imageBytes) {
+		// detection/detect
+		println("\ndetection/detect bytes: ");
+		JSONObject result = null;
+		if (imageBytes == null)
+			return null;
+		try {
+			result = httpRequests.detectionDetect(new PostParameters().setImg(imageBytes).setMode("oneface"));
+			return result;
+		} catch (FaceppParseException e2) {
+			e2.printStackTrace();
+		}
+		return null;
+	}
+	
+	
 	public static JSONObject addFaceToPerson(String imageFilePath, String personName) {
 		// detection/detect
-		System.out.println("\ndetection/detect: " + imageFilePath);
+		println("\ndetection/detect: " + imageFilePath);
 		JSONObject result = detectFace(imageFilePath);
 		if (result == null)
 			return null;
@@ -101,19 +130,46 @@ public class FaceppUtils {
 		}
 		
 		// person/add_face
-		System.out.println("\nperson/add_face: " + imageFilePath + " to " + personName);
+		println("\nperson/add_face: " + imageFilePath + " to " + personName);
 		try {
 			result = httpRequests.personAddFace(new PostParameters().setFaceId(faceId).setPersonName(personName));
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;	
 	}
 	
-	public static boolean addFaceToPerson2(String imageFilePath, String personName) {
-		JSONObject result = addFaceToPerson(imageFilePath, personName);
+	public static boolean addFaceToPerson(byte[] imageBytes, String personName) {
+		// detection/detect
+		println("\ndetection/detect: ");
+		JSONObject result = detectFace(imageBytes);
+		if (result == null)
+			return false;
+		
+		String faceId = null;
 		try {
+			faceId = result.getJSONArray("face").getJSONObject(0).getString("face_id");
+			
+			// person/add_face
+			println("\nperson/add_face bytes: " + " to " + personName);
+			try {
+				result = httpRequests.personAddFace(new PostParameters().setFaceId(faceId).setPersonName(personName));
+			} catch (FaceppParseException e) {
+				e.printStackTrace();
+			}
+			println(result);
+			return true;	
+		} catch (JSONException e1) {
+			e1.printStackTrace();
+		}
+		
+		return false;
+	}
+	
+	public static boolean addFaceToPerson2(String imageFilePath, String personName) {
+		try {
+			JSONObject result = addFaceToPerson(imageFilePath, personName);
 			if ((boolean) result.get("success"))
 				return true;
 		} catch (JSONException e) {
@@ -122,63 +178,95 @@ public class FaceppUtils {
 		return false;
 	}
 	
+	public static boolean addFacesToPerson(ArrayList<String> filePaths, String personName) {
+		try {
+			for (String imageFilePath : filePaths) {
+				JSONObject result = addFaceToPerson(imageFilePath, personName);
+				if (!((boolean) result.get("success")))
+					throw new Exception("failed to a face upload");
+			}
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+	
 	public static JSONObject createGroup(String groupName) {
-		System.out.println("\ngroup/create: " + groupName);
+		println("\ngroup/create: " + groupName);
 		JSONObject result = null;
 		try {
 			result = httpRequests.groupCreate(new PostParameters().setGroupName(groupName));
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;
 	}
 	
 	public static JSONObject deleteGroup(String groupName) {
-		System.out.println("\nperson/delete: " + groupName);
+		println("\nperson/delete: " + groupName);
 		JSONObject result = null;
 		try {
 			result = httpRequests.groupDelete(new PostParameters().setGroupName(groupName));
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;	
 	}
 	
 	public static JSONObject getGroupInfo(String groupName) {
-		System.out.println("\ngroup/get_info: " + groupName);
+		println("\ngroup/get_info: " + groupName);
 		JSONObject result = null;
 		try {
 			result = httpRequests.groupGetInfo(new PostParameters().setGroupName(groupName));
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;	
 	}
 	
 	public static JSONObject addPersonToGroup(String personName, String groupName) {
-		System.out.println("\ngroup/add_person: " + personName + " to " + groupName);
+		println("\ngroup/add_person: " + personName + " to " + groupName);
 		JSONObject result = null;
 		try {
 			result = httpRequests.groupAddPerson(new PostParameters().setPersonName(personName).setGroupName(groupName));
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;	
 	}
 	
+	public static boolean addPersonToGroup2(String personName, String groupName) {
+		println("\ngroup/add_person: " + personName + " to " + groupName);
+		JSONObject result = null;
+		try {
+			result = httpRequests.groupAddPerson(new PostParameters().setPersonName(personName).setGroupName(groupName));
+			try {
+				if (result.getInt("response_code") == 200)
+					return true;
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		} catch (FaceppParseException e) {
+			e.printStackTrace();
+		}
+		println(result);
+		return false;	
+	}
+	
 	public static JSONObject getPersonList() {
-		System.out.println("\ninfo/get_person_list");
+		println("\ninfo/get_person_list");
 		JSONObject result = null;
 		try {
 			result = httpRequests.infoGetPersonList();
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;
 	}
 	
@@ -197,19 +285,34 @@ public class FaceppUtils {
 	}
 	
 	public static JSONObject getGroupList() {
-		System.out.println("\ninfo/get_group_list");
+		println("\ninfo/get_group_list");
 		JSONObject result = null;
 		try {
 			result = httpRequests.infoGetGroupList();
 		} catch (FaceppParseException e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
+		return result;
+	}
+	
+	public static List<String> getGroupList2() {
+		println("\ninfo/get_group_list");
+		ArrayList<String> result = new ArrayList<String>();
+		JSONObject tempResult = getGroupList();
+		try {
+			JSONArray group = tempResult.getJSONArray("group");
+			for (int i=0; i<group.length(); ++i) {
+				result.add(group.getJSONObject(i).getString("group_name"));
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 		return result;
 	}
 	
 	public static String trainIdentify(String groupName) {
-		System.out.println("\ntrain/identify");
+		println("\ntrain/identify");
 		JSONObject result = null;
 		String sessionId = null;
 		try {
@@ -218,12 +321,12 @@ public class FaceppUtils {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return sessionId;
 	}
 	
 	public static String getTraninigStatus(String sessionId) {
-		System.out.println("\ninfo/get_session");
+		println("\ninfo/get_session");
 		JSONObject result = null;
 		String status = null;
 		try {
@@ -233,20 +336,20 @@ public class FaceppUtils {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return status;
 		
 	}
 	
 	public static JSONObject recoginizeFace(String imageFilePath, String groupName) {
-		System.out.println("\nrecognition/identify");
+		println("\nrecognition/identify");
 		JSONObject result = null;
 		try {
 			result = httpRequests.recognitionIdentify(new PostParameters().setImg(new File(imageFilePath)).setGroupName(groupName));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		System.out.println(result);
+		println(result);
 		return result;
 	}
 	
@@ -274,26 +377,93 @@ public class FaceppUtils {
 		
 	}
 	
-	public static Pair recoginizeFace2(String imageFilePath, String groupName) {
-		JSONObject result = recoginizeFace(imageFilePath, groupName);
+	public static List<Pair> recoginizeFace2(String imageFilePath, String groupName) {
+		println("\nrecognition/identify");
+		JSONObject result = null;
 		try {
-			JSONArray candidates = result.getJSONArray("face").getJSONObject(0).getJSONArray("candidate");
-			double confidence = 0.0;
-			String name = "";
-			for (int i=0; i<candidates.length(); ++i) {
-				JSONObject person = candidates.getJSONObject(i);
-				double tempConfidence = person.getDouble("confidence");
-				if (tempConfidence > confidence) {
-					confidence = tempConfidence;
-					name = person.getString("person_name");
+			result = httpRequests.recognitionIdentify(new PostParameters().setImg(new File(imageFilePath)).setGroupName(groupName));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		println(result);
+
+		try {
+			if (result != null && result.getJSONArray("face").length() > 0) {
+				try {
+					JSONArray candidates = result.getJSONArray("face").getJSONObject(0).getJSONArray("candidate");
+					List<Pair> returnList = new ArrayList<Pair>();
+					for (int i=0; i<candidates.length(); ++i) {
+						JSONObject person = candidates.getJSONObject(i);
+						String tempName = person.getString("person_name");
+						double tempConfidence = person.getDouble("confidence");
+						Pair tempPair = new Pair(tempName, tempConfidence);
+						returnList.add(tempPair);
+					}
+					Collections.sort(returnList, new Comparator<Pair>() {
+			            public int compare(Pair arg0, Pair arg1) {
+			            	if (arg0.getSecond() - arg1.getSecond() > 0.00001)
+			            		return -1;
+			            	else if (arg1.getSecond() - arg0.getSecond() > 0.00001)
+			            		return 1;
+			            	else
+								return 0;
+			            }
+			        });
+					return returnList;
+				} catch (JSONException e) {
+					e.printStackTrace();
 				}
+			} else {
+				println("cannot detect the given face");
 			}
-			System.out.println("It must be: " + name + " with confidence " + confidence);
-			if (confidence < RECOGNITION_THRESHOLD)
-				return null;
-			else
-				return new Pair(name, confidence);
 		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public static List<Pair> recoginizeFace(byte[] imageBytes, String groupName) {
+		println("\nrecognition/identify");
+		JSONObject result = null;
+		try {
+			result = httpRequests.recognitionIdentify(new PostParameters().setImg(imageBytes).setGroupName(groupName));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		println(result);
+
+		try {
+			if (result != null && result.getJSONArray("face").length() > 0) {
+				try {
+					JSONArray candidates = result.getJSONArray("face").getJSONObject(0).getJSONArray("candidate");
+					List<Pair> returnList = new ArrayList<Pair>();
+					for (int i=0; i<candidates.length(); ++i) {
+						JSONObject person = candidates.getJSONObject(i);
+						String tempName = person.getString("person_name");
+						double tempConfidence = person.getDouble("confidence");
+						Pair tempPair = new Pair(tempName, tempConfidence);
+						returnList.add(tempPair);
+					}
+					Collections.sort(returnList, new Comparator<Pair>() {
+			            public int compare(Pair arg0, Pair arg1) {
+			            	if (arg0.getSecond() - arg1.getSecond() > 0.00001)
+			            		return -1;
+			            	else if (arg1.getSecond() - arg0.getSecond() > 0.00001)
+			            		return 1;
+			            	else
+								return 0;
+			            }
+			        });
+					return returnList;
+				} catch (JSONException e) {
+					e.printStackTrace();
+				}
+			} else {
+				println("cannot detect the given face");
+			}
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return null;
@@ -304,7 +474,7 @@ public class FaceppUtils {
 		File imageFile = new File(imageFilePath);
 		File landmarkedImageFile = new File(imageFile.getParent() + "/" + "marked_" + imageFile.getName());
 		ImageUtils imageContext = new ImageUtils(imageFile.getAbsolutePath(), landmarkedImageFile.getAbsolutePath());
-		System.out.println(imageFile.getParent());
+		println(imageFile.getParent());
 
 		JSONObject result = null;
 		// detection/detect
@@ -323,7 +493,7 @@ public class FaceppUtils {
 			
 			// detection/landmark
 			result = httpRequests.detectionLandmark(new PostParameters().setFaceId(faceId));
-			System.out.println(result);
+			println(result);
 			JSONObject landmarks = result.getJSONArray("result").getJSONObject(0).getJSONObject("landmark");
 
 			for (Object key : landmarks.keySet()) {
@@ -358,7 +528,7 @@ public class FaceppUtils {
 //			deletePerson("Messi");
 //			addFaceToPerson(IMAGE_FILE, "Messi");
 //			getPersonInfo("Messi");
-//			createGroup("test_group");
+//			createGroup("test_group2");
 //			deleteGroup("test_group");
 //			getGroupInfo("test_group");
 			//info/get_person_list
@@ -372,5 +542,8 @@ public class FaceppUtils {
 			e.printStackTrace();
 		} 
 	}
+
+
+
 
 }
