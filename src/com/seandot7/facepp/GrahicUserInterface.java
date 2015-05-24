@@ -406,7 +406,7 @@ class ImageViewerFrame extends JFrame {
 						try {
 							boolean result2 = FaceppUtils.addFacesToPerson(filePaths, currentPersonName);
 							if (result2) {
-								consoleJTextArea.setText("success add faces to the user");
+								consoleJTextArea.setText("success add " + filePaths.size() + " faces to the user");
 							} else {
 								consoleJTextArea.setText("failed to add faces to the user, pls try again");
 							}
